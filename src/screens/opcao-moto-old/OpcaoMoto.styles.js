@@ -1,0 +1,87 @@
+import {StyleSheet} from 'react-native';
+
+export default StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)', // fundo escuro semi-transparente
+
+    alignItems: 'center',
+  },
+  modalBox: {
+    width: '95%',
+    backgroundColor: '#fff',
+    padding: 20,
+    marginTop: 30,
+    borderRadius: 10,
+    elevation: 10,
+  },
+  modalInput: {
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 15,
+  },
+  container: {
+    height: 250,
+    width: '90%',
+    marginTop: 40,
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+  },
+
+  input: {
+    height: 45,
+    fontSize: 18,
+    fontFamily: 'Montserrat-Regular',
+    backgroundColor: '#fff', // azul claro
+    borderRadius: 10,
+    marginBottom: 15,
+    paddingHorizontal: 10,
+
+    // Sombra
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+    color: '#353738', // texto branco
+  },
+  row: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  opcaoLogin: {
+    width: '33.3%',
+    height: 40,
+    borderWidth: 1,
+    borderColor: 'rgba(12, 159, 227, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 6,
+    marginHorizontal: 0.5,
+  },
+  textLogin: {
+    fontSize: 19,
+    fontFamily: 'Montserrat-Regular',
+    color: 'rgba(8, 77, 110, 0.6)',
+  },
+  button: {
+    width: '100%',
+    height: 45,
+    marginTop: 10,
+    backgroundColor: 'rgba(12, 159, 227, 1)',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+
+    // Sombra
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+});

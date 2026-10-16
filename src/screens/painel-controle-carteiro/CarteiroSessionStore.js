@@ -1,0 +1,97 @@
+// SessionStore.js
+const SessionStore = {
+  pagamentoRealizadoSucesso: '',
+  serieViagemEmNegociacao: '',
+  pixPago: '',
+  codidoPixGeradoAtualmente: '',
+  qrcodePix: '',
+  codigoCopiaColaPix: '',
+  tipoPagamento: '',
+  meioTransporte: '',
+  transporte: '',
+  rotaSelecionada: '',
+  
+  cidadeOrigem: '',
+  cidadeOrigemLat: '',
+  cidadeOrigemLng: '',
+
+  cidadeDestino: '',
+  cidadeDestinoLat: '',
+  cidadeDestinoLng: '',
+
+  dataPartida: '',
+  dataPartidaParaBusca: '',
+  horaPartida: '',
+  dataChegada: '',
+  dataChegadaParaBusca: '',
+  horaChegada: '',
+
+  tipoEncomenda: '',
+  tipoEncomendaDoCliente: '',
+
+  valorSeguro: '',
+  valorServico: '',
+  
+  setPagamentoRealizadoSucesso(value) { this.pagamentoRealizadoSucesso = value; },
+  setSerieViagemEmNegociacao(value) { this.serieViagemEmNegociacao = value; },
+  setPixPago(value) { this.pixPago = value; },
+  setQrcodePix(value) { this.qrcodePix = value; },
+  setCodigoCopiaColaPix(value) { this.codigoCopiaColaPix = value; },
+  setCodidoPixGeradoAtualmente(value) { this.codidoPixGeradoAtualmente = value; },
+  setTipoPagamento(value) { this.tipoPagamento = value; },
+  setMeioTransporte(value) { this.meioTransporte = value; },
+  setTransporte(value) { this.transporte = value; },
+  setRotaSelecionada(value) { this.rotaSelecionada = value; },
+  setCidadeOrigem(value) { this.cidadeOrigem = value; },
+  setCidadeOrigemLat(value) { this.cidadeOrigemLat = value; },
+  setCidadeOrigemLng(value) { this.cidadeOrigemLng = value; },
+  setCidadeDestino(value) { this.cidadeDestino = value; },
+  setCidadeDestinoLat(value) { this.cidadeDestinoLat = value; },
+  setCidadeDestinoLng(value) { this.cidadeDestinoLng = value; },
+
+  setDataPartida(value) { this.dataPartida = value; },
+  setDataPartida(value) { this.dataPartida = value; },
+  setDataPartidaParaBusca(value) { this.dataPartidaParaBusca = value; },
+  setHoraPartida(value) { this.horaPartida = value; },
+  setDataChegada(value) { this.dataChegada = value; },
+  setDataChegadaParaBusca(value) { this.dataChegadaParaBusca = value; },
+  setHoraChegada(value) { this.horaChegada = value; },
+
+  setTipoEncomenda(value) { this.tipoEncomenda = value; },
+  setTipoEncomendaDoCliente(value) { this.tipoEncomendaDoCliente = value; },
+
+  setValorSeguro(value) { this.valorSeguro = value; },
+  setValorServico(value) { this.valorServico = value; },
+
+  getPagamentoRealizadoSucesso() { return this.pagamentoRealizadoSucesso; },
+  getSerieViagemEmNegociacao() { return this.serieViagemEmNegociacao; },
+  getPixPago() { return this.pixPago; },
+  getQrcodePix() { return this.qrcodePix; },
+  getCodidoPixGeradoAtualmente() { return this.codidoPixGeradoAtualmente; },
+  getCodigoCopiaColaPix() { return this.codigoCopiaColaPix; },
+  getTipoPagamento() { return this.tipoPagamento; },
+  getMeioTransporte() { return this.meioTransporte; },
+  getTransporte() { return this.transporte; },
+  getRotaSelecionada() { return this.rotaSelecionada; },
+  getCidadeOrigem() { return this.cidadeOrigem; },
+  getCidadeOrigemLat() { return this.cidadeOrigemLat; },
+  getCidadeOrigemLng() { return this.cidadeOrigemLng; },
+  getCidadeDestino() { return this.cidadeDestino; },
+  getCidadeDestinoLat() { return this.cidadeDestinoLat; },
+  getCidadeDestinoLng() { return this.cidadeDestinoLng; },
+
+  getDataPartida() { return this.dataPartida; },
+  getDataPartidaParaBusca() { return this.dataPartidaParaBusca; },
+  getHoraPartida() { return this.horaPartida; },
+  getDataChegada() { return this.dataChegada; },
+  getDataChegadaParaBusca() { return this.dataChegadaParaBusca; },
+  getHoraChegada() { return this.horaChegada; },
+
+  getTipoEncomenda() { return this.tipoEncomenda; },
+  getTipoEncomendaDoCliente() { return this.tipoEncomendaDoCliente; },
+
+  getValorSeguro() { return this.valorSeguro; },
+  getValorServico() { return this.valorServico; },
+};
+
+export default SessionStore;

@@ -1,0 +1,703 @@
+import React, {useState, useEffect, useCallback} from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Dimensions,
+} from 'react-native';
+import LocalizacaoAtual from '../localizacaoAtual/LocalizacaoAtual';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {UserRoundPlus, UserRoundCheck} from 'lucide-react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {useAuth} from '../../context/AuthContext';
+import UseNotificacoesDestinatario from '../../hooks/UseNotificacoes/UseNotificacoesDestinatario';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {getSecureData, clearSecureStorage} from '../../utils/secureStorage';
+import Config from 'react-native-config';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/pt-br';
+
+import logo from '../../assets/logo/logo.png';
+
+import home from '../../assets/images/home.png';
+import cancel from '../../assets/images/cancel.png';
+import travelAgency from '../../assets/images/travel-agency.png';
+import inProgress from '../../assets/images/in-progress.png';
+
+dayjs.extend(relativeTime);
+dayjs.locale('pt-br');
+
+const {width} = Dimensions.get('window');
+
+export default function HeaderDestinatario() {
+  const navigationHeader = useNavigation();
+  const [avatarVersion, setAvatarVersion] = useState(Date.now());
+  const [modalPerfilUsuario, setModalPerfilUsuario] = useState(false);
+  const [modalNotificacoes, setModalNotificacoes] = useState(false);
+  const [showMenuModal, setShowMenuModal] = useState(false);
+
+  const formatarDataNotificacao = dataString => {
+    return dayjs(dataString).fromNow();
+  };
+
+  const {user} = useAuth();
+
+  const {notificacoesDestinatario, buscarNotificacoesDestinatario} =
+    UseNotificacoesDestinatario();
+
+  useEffect(() => {
+    const fetchNotificacoesGerais = async () => {
+      await buscarNotificacoesDestinatario();
+    };
+    fetchNotificacoesGerais();
+  }, []);
+
+  useEffect(() => {
+    const redirectLogin = async () => {
+      try {
+        const refresh_token = await getSecureData('refresh_token');
+        if (!refresh_token) {
+          navigationHeader.navigate('Login');
+          return;
+        }
+      } catch (error) {}
+    };
+    redirectLogin();
+  }, []);
+
+  const handleNotificacoes = async () => {
+    setModalNotificacoes(true);
+  };
+
+  const handleLogout = async () => {
+    await AsyncStorage.clear();
+    await clearSecureStorage();
+    setModalPerfilUsuario(false);
+    navigationHeader.navigate('Home');
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      setAvatarVersion(Date.now());
+    }, []),
+  );
+
+  return (
+    <View style={styles.mainWrapper}>
+      <Modal
+        visible={modalPerfilUsuario}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalPerfilUsuario(false)}>
+        <TouchableWithoutFeedback onPress={() => setModalPerfilUsuario(false)}>
+          <View
+            style={[
+              styles.modalOverlay,
+              {justifyContent: 'flex-start', alignItems: 'flex-end'},
+            ]}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.userProfileModal}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalPerfilUsuario(false);
+                    navigationHeader.navigate('MeuPerfil');
+                  }}
+                  style={styles.modalOption}>
+                  <MaterialIcons
+                    name="person"
+                    size={20}
+                    color="#555"
+                    style={styles.modalOptionIcon}
+                  />
+                  <Text style={styles.modalOptionText}>Meu Perfil</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleNotificacoes()}
+                  style={styles.modalOption}>
+                  <MaterialIcons
+                    name="notifications"
+                    size={20}
+                    color="#555"
+                    style={styles.modalOptionIcon}
+                  />
+                  <Text style={styles.modalOptionText}>Notificações</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalPerfilUsuario(false);
+                    handleLogout();
+                  }}
+                  style={[styles.modalOption, {marginBottom: 0}]}>
+                  <MaterialIcons
+                    name="exit-to-app"
+                    size={20}
+                    color="#9c0e23"
+                    style={styles.modalOptionIcon}
+                  />
+                  <Text style={[styles.modalOptionText, {color: '#9c0e23'}]}>
+                    Logout
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      <Modal
+        visible={modalNotificacoes}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalNotificacoes(false)}>
+        <TouchableWithoutFeedback onPress={() => setModalNotificacoes(false)}>
+          <View
+            style={[
+              styles.modalOverlay,
+              {justifyContent: 'flex-start', alignItems: 'flex-end'},
+            ]}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.notificationsModal}>
+                <View style={styles.notificationsHeader}>
+                  <Text style={styles.notificationsTitle}>Notificações</Text>
+                  <TouchableOpacity onPress={() => setModalNotificacoes(false)}>
+                    <MaterialIcons name="close" size={24} color="#555" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {notificacoesDestinatario.length === 0 && (
+                    <Text style={styles.emptyNotifications}>
+                      Nenhuma notificação.
+                    </Text>
+                  )}
+                  {notificacoesDestinatario.map((notificacao, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.notificationItem}>
+                      <Image
+                        source={{
+                          uri: `${Config.URL_MAIN}${notificacao.serie_quem_notificou}`,
+                        }}
+                        style={styles.notificationAvatar}
+                      />
+                      <View style={styles.notificationTextContainer}>
+                        <Text style={styles.notificationType}>
+                          Nova Notificação
+                        </Text>
+                        <Text numberOfLines={2} style={styles.notificationBody}>
+                          {notificacao.notificacao}
+                        </Text>
+                        <Text style={styles.notificationDate}>
+                          {formatarDataNotificacao(notificacao.data)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      <Modal
+        visible={showMenuModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenuModal(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowMenuModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.menuContainer}>
+                <TouchableOpacity
+                  onPress={() => setShowMenuModal(false)}
+                  style={styles.closeIconButton}>
+                  <MaterialIcons
+                    name="keyboard-arrow-left"
+                    size={32}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
+                  contentContainerStyle={styles.menuContentContainer}>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setShowMenuModal(false);
+                      navigationHeader.navigate('DashboardReceiver');
+                    }}>
+                    <Image
+                      source={home}
+                      style={styles.menuIcon}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.menuItemText}>Início</Text>
+                  </TouchableOpacity>
+                  {/* Item: Encomendas em Andamento */}
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setShowMenuModal(false);
+                      navigationHeader.navigate('TripsProgressReceiver');
+                    }}>
+                    <Image
+                      source={inProgress}
+                      style={styles.menuIcon}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.menuItemText}>
+                      Encomendas{'\n'}em Andamento
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Item: Encomendas Recebidas */}
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setShowMenuModal(false);
+                      navigationHeader.navigate('TripsConcludedReceiver');
+                    }}>
+                    <Image
+                      source={travelAgency}
+                      style={styles.menuIcon}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.menuItemText}>
+                      Encomendas{'\n'}Recebidas
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Item: Encomendas não Efetivadas */}
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setShowMenuModal(false);
+                      navigationHeader.navigate('TripsNotConcludedReceiver');
+                    }}>
+                    <Image
+                      source={cancel}
+                      style={styles.menuIcon}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.menuItemText}>
+                      Encomendas{'\n'}não Efetivadas
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.sectionHeader}>PAÍNEIS DE CONTROLE</Text>
+
+                  {/* Painel do Viajante */}
+                  <TouchableOpacity
+                    style={styles.panelButton}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setShowMenuModal(false);
+                      navigationHeader.navigate('DashboardTraveler');
+                    }}>
+                    <View style={styles.panelIconBox}>
+                      <UserRoundPlus size={28} color="#fff" strokeWidth={2.5} />
+                    </View>
+                    <Text style={styles.panelButtonText}>
+                      Painel do{'\n'}Viajante
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Painel do Cliente */}
+                  <TouchableOpacity
+                    style={styles.panelButton}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setShowMenuModal(false);
+                      navigationHeader.navigate('DashboardClient');
+                    }}>
+                    <View style={styles.panelIconBox}>
+                      <UserRoundCheck
+                        size={28}
+                        color="#fff"
+                        strokeWidth={2.5}
+                      />
+                    </View>
+                    <Text style={styles.panelButtonText}>
+                      Painel do{'\n'}Cliente
+                    </Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      <View style={styles.headerMainContainer}>
+        <TouchableOpacity
+          onPress={() => {
+            setShowMenuModal(false);
+            navigationHeader.navigate('Home');
+          }}
+          style={styles.logoTouchArea}>
+          <Image
+            source={logo}
+            style={styles.logoImageStyle}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+
+        <View style={styles.rightActionsWrapper}>
+          <LinearGradient
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 0}}
+            colors={['#1a7fe7', '#19c4c9']}
+            style={styles.menuSquareGradient}>
+            <TouchableOpacity
+              onPress={() => setShowMenuModal(true)}
+              style={styles.menuSquareTouch}>
+              <MaterialIcons name="menu" size={26} color="#fff" />
+              {notificacoesDestinatario.length > 0 && (
+                <View style={styles.notificationBadgeMenu}>
+                  <Text style={styles.notificationBadgeTextMenu}>
+                    {notificacoesDestinatario.length > 99
+                      ? '99+'
+                      : notificacoesDestinatario.length}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </LinearGradient>
+
+          <LinearGradient
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 0}}
+            colors={['#1a7fe7', '#19c4c9']}
+            style={styles.profileInfiniteBarGradient}>
+            <TouchableOpacity
+              onPress={() => setModalPerfilUsuario(true)}
+              style={styles.profileBarTouch}>
+              <View style={styles.avatarBarFrame}>
+                <Image
+                  key={avatarVersion}
+                  source={{
+                    uri: `${Config.URL_MAIN}${user?.identificacao}`,
+                    cache: 'reload',
+                  }}
+                  style={styles.avatarBarImage}
+                />
+              </View>
+              <MaterialIcons
+                name="keyboard-arrow-down"
+                size={18}
+                color="#fff"
+                style={styles.arrowBarIcon}
+              />
+
+              <View style={{width: 15}} />
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+      </View>
+
+      <LocalizacaoAtual />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  mainWrapper: {
+    backgroundColor: '#F3F6FD',
+    overflow: 'hidden',
+  },
+  headerMainContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    marginBottom: -15,
+    marginTop: -10,
+    backgroundColor: '#e8eef6bd',
+    position: 'relative',
+    zIndex: 1,
+  },
+  logoTouchArea: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoImageStyle: {
+    width: 190,
+    height: 130,
+  },
+  rightActionsWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 54,
+    marginRight: -20,
+  },
+  menuSquareGradient: {
+    width: 50,
+    height: 50,
+    borderRadius: 15,
+    marginRight: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  menuSquareTouch: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  notificationBadgeMenu: {
+    position: 'absolute',
+    right: -8,
+    top: -8,
+    backgroundColor: '#FF4136',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+  notificationBadgeTextMenu: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: 'Montserrat-Bold',
+    textAlign: 'center',
+  },
+  profileInfiniteBarGradient: {
+    height: 54,
+    paddingLeft: 6,
+    borderTopLeftRadius: 27,
+    borderBottomLeftRadius: 27,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  profileBarTouch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: '100%',
+  },
+  avatarBarFrame: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 2,
+    borderColor: '#fff',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarBarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  arrowBarIcon: {
+    marginLeft: 10,
+    marginRight: 15,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  userProfileModal: {
+    backgroundColor: '#fff',
+    width: 180,
+    paddingVertical: 15,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    marginTop: 85,
+    marginRight: 20,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingVertical: 5,
+  },
+  modalOptionIcon: {
+    marginRight: 10,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    fontFamily: 'Montserrat-Regular',
+    color: '#333',
+  },
+  notificationsModal: {
+    backgroundColor: '#fff',
+    width: width * 0.85,
+    maxWidth: 360,
+    padding: 15,
+    borderRadius: 15,
+    marginTop: 85,
+    marginRight: 20,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
+    maxHeight: '70%',
+  },
+  notificationsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  notificationsTitle: {
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
+    color: '#333',
+  },
+  emptyNotifications: {
+    textAlign: 'center',
+    color: '#888',
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    marginBottom: 15,
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
+    padding: 10,
+    borderRadius: 10,
+  },
+  notificationAvatar: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    marginRight: 12,
+  },
+  notificationTextContainer: {
+    flex: 1,
+  },
+  notificationType: {
+    color: '#1a7fe7',
+    fontSize: 15,
+    fontFamily: 'Montserrat-Bold',
+    marginBottom: 2,
+  },
+  notificationBody: {
+    color: '#555',
+    fontSize: 14,
+    fontFamily: 'Montserrat-Regular',
+    lineHeight: 18,
+  },
+  notificationDate: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 5,
+    fontFamily: 'Montserrat-Regular',
+  },
+  menuContainer: {
+    backgroundColor: '#007BFF',
+    width: '78%',
+    maxWidth: 320,
+    paddingVertical: 25,
+    paddingHorizontal: 40,
+    borderTopRightRadius: 30,
+    borderBottomRightRadius: 30,
+    position: 'relative',
+    elevation: 10,
+    alignSelf: 'flex-start',
+  },
+  menuContentContainer: {
+    paddingTop: 20,
+  },
+  closeIconButton: {
+    position: 'absolute',
+    right: -20,
+    top: '50%',
+    marginTop: -20,
+    backgroundColor: '#1a7fe7',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+    zIndex: 10,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginBottom: 8,
+  },
+  menuIcon: {
+    width: 32,
+    height: 32,
+  },
+  menuItemText: {
+    fontSize: 17,
+    marginLeft: 15,
+    fontFamily: 'Montserrat-Bold',
+    color: '#ffffff',
+    lineHeight: 20,
+  },
+  sectionHeader: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+    marginTop: 5,
+    marginBottom: 12,
+    letterSpacing: 1,
+  },
+  panelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  panelIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  panelButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontFamily: 'Montserrat-Bold',
+    marginLeft: 15,
+    lineHeight: 19,
+  },
+});

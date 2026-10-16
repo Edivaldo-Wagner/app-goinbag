@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "599034993484",
+    "project_id": "goinbag-d2e83",
+    "storage_bucket": "goinbag-d2e83.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:599034993484:android:1b05a2a0ec23b17b7e4de9",
+        "android_client_info": {
+          "package_name": "com.app_goinbag"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqIssUoDEv9EaQDSqMqsEAihuyW0-P2c4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:599034993484:android:a5adf31a2dcdc16f7e4de9",
+        "android_client_info": {
+          "package_name": "com.fcmproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqIssUoDEv9EaQDSqMqsEAihuyW0-P2c4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
