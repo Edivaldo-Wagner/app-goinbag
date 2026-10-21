@@ -14,12 +14,14 @@ import {
   Alert,
   Keyboard,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '../header/Header';
 import LocalizacaoAtual from '../localizacaoAtual/LocalizacaoAtual';
 import {useAuth} from '../../context/AuthContext';
 import UseUsuarios from '../../hooks/UseUsuarios/UseUsuarios';
+import UseAlterarSenha from '../../hooks/UseAlterarSenha/UseAlterarSenha';
 import {TabView, SceneMap, TabBar} from 'react-native-tab-view';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {launchImageLibrary} from 'react-native-image-picker';
@@ -27,49 +29,37 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import {Picker} from '@react-native-picker/picker';
 import {TextInputMask} from 'react-native-masked-text';
 import CountryFlag from 'react-native-country-flag';
-import {getSecureData, clearSecureStorage} from '../../utils/secureStorage';
+import {getSecureData} from '../../utils/secureStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import UseEditarUsuario from '../../hooks/UseEditarUsuario/UseEditarUsuario';
-import UseGerarCodigoConfirmacao from '../../hooks/UseGerarCodigoConfirmacao/UseGerarCodigoConfirmacao';
-import useSelectCodigoConfirmacao from '../../hooks/useSelectCodigoConfirmacao/useSelectCodigoConfirmacao';
-import {useFocusEffect} from '@react-navigation/native';
+import UseConfirmacaoTelefone from '../../hooks/UseConfirmacaoTelefone/UseConfirmacaoTelefone';
+import UseConfirmacaoEmail from '../../hooks/UseConfirmacaoEmail/UseConfirmacaoEmail';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import Config from 'react-native-config';
 const URL_MAIN = Config.URL_MAIN;
 
-// ======= Helper functions to integrate with your backend =======
-const sendVerificationCode = async (
-  item,
-  nome,
-  inserirGerarCodigoConfirmacao,
-) => {
-  if (item.type == 'email') {
-    await inserirGerarCodigoConfirmacao('email', nome, item.value);
-  } else {
-    let numeroLimpo = item.value.replace(/\D/g, '');
-    if (numeroLimpo.startsWith('55')) {
-      const ddd = numeroLimpo.slice(2, 4);
-      const restante = numeroLimpo.slice(4);
-
-      if (restante.length === 9 && restante.startsWith('9')) {
-        numeroLimpo = '55' + ddd + restante.slice(1);
-      }
-    }
-    await inserirGerarCodigoConfirmacao('telefone', nome, numeroLimpo);
+// ======= Helper functions =======
+const normalizarTelefone = valor => {
+  let digitos = String(valor || '').replace(/\D/g, '');
+  if (digitos.startsWith('55') && digitos.length > 11) {
+    digitos = digitos.slice(2);
   }
-  return {success: true};
+  return digitos;
 };
 
-const verifyCode = async (code, selectCodigoConfirmacao) => {
-  let codigoValidado = await selectCodigoConfirmacao(code);
-  if (codigoValidado.status == 'sucesso') {
-    return {success: true};
-  } else {
-    return {success: false};
+const formatarDataParaAPI = data => {
+  if (!data || !(data instanceof Date) || isNaN(data.getTime())) {
+    return '';
   }
+  const dia = String(data.getDate()).padStart(2, '0');
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const ano = data.getFullYear();
+  return `${dia}/${mes}/${ano}`;
 };
-// =============================================================
+// ================================
 
 const EditarPerfil = () => {
+  const navigation = useNavigation();
   const {user} = useAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
@@ -90,20 +80,23 @@ const EditarPerfil = () => {
   const [chavePix, setChavePix] = useState('');
   const [telefone, setTelefone] = useState('');
   const telefoneRef = useRef(null);
+  const telefoneOriginalRef = useRef('');
   const [email, setEmail] = useState('');
+  const emailOriginalRef = useRef('');
   const [uploadAvatar, setUploadAvatar] = useState(false);
   const [avatar, setAvatar] = useState('');
 
+  const [salvandoPerfil, setSalvandoPerfil] = useState(false);
+  const salvamentoEmAndamento = useRef(false);
+
   // verification flow states
+  const verificationQueueRef = useRef([]);
+  const currentVerificationIndexRef = useRef(0);
   const [verificationQueue, setVerificationQueue] = useState([]);
   const [currentVerificationIndex, setCurrentVerificationIndex] = useState(0);
-  const [isVerificationModalVisible, setIsVerificationModalVisible] =
-    useState(false);
-  const [isSendingCode, setIsSendingCode] = useState(false);
-  const [resendCountdown, setResendCountdown] = useState(0);
+  const [isVerificationModalVisible, setIsVerificationModalVisible] = useState(false);
 
-  // 5-digit inputs
-  const [codeDigits, setCodeDigits] = useState(['', '', '', '', '']);
+  // 5-digit inputs refs
   const inputRefs = [
     useRef(null),
     useRef(null),
@@ -112,12 +105,64 @@ const EditarPerfil = () => {
     useRef(null),
   ];
 
-  const [pendingProfileData, setPendingProfileData] = useState(null);
-
   const {usuarios} = UseUsuarios();
   const {editarUsuario} = UseEditarUsuario();
-  const {inserirGerarCodigoConfirmacao} = UseGerarCodigoConfirmacao();
-  const {selectCodigoConfirmacao} = useSelectCodigoConfirmacao();
+
+  const handleNextVerificationStep = async (data) => {
+    try {
+      if (data?.confirmation_token) {
+        await AsyncStorage.setItem('confirmation_token', data.confirmation_token);
+      }
+
+      const queue = verificationQueueRef.current;
+      const nextIndex = currentVerificationIndexRef.current + 1;
+
+      if (nextIndex < queue.length) {
+        currentVerificationIndexRef.current = nextIndex;
+        setCurrentVerificationIndex(nextIndex);
+
+        const nextVerification = queue[nextIndex];
+
+        phoneConfirmationHook.setCode(['', '', '', '', '']);
+        emailConfirmationHook.setCode(['', '', '', '', '']);
+
+        if (nextVerification.type === 'telefone') {
+          await phoneConfirmationHook.generateCode();
+        } else {
+          await emailConfirmationHook.generateCode();
+        }
+        return;
+      }
+
+      setIsVerificationModalVisible(false);
+      setVerificationQueue([]);
+      verificationQueueRef.current = [];
+      currentVerificationIndexRef.current = 0;
+      await AsyncStorage.removeItem('confirmation_token');
+
+      setUploadAvatar(false);
+      setMsgIconColorAlertModal('#188211');
+      setMsgIconAlertModal('task-alt');
+      setMsgTitleAlertModal('SUCESSO');
+      setMsgDescAlertModal('Perfil e dados confirmados com sucesso!');
+      setShowAlertModal(true);
+    } catch (error) {
+      console.warn('Erro na sequência de confirmação:', error);
+    }
+  };
+
+  const phoneConfirmationHook = UseConfirmacaoTelefone({
+    onVerified: (data) => handleNextVerificationStep(data),
+  });
+
+  const emailConfirmationHook = UseConfirmacaoEmail({
+    onVerified: (data) => handleNextVerificationStep(data),
+  });
+
+  const currentVerificationType = verificationQueue[currentVerificationIndex]?.type;
+  const activeHook = currentVerificationType === 'telefone'
+    ? phoneConfirmationHook
+    : emailConfirmationHook;
 
   useFocusEffect(
     useCallback(() => {
@@ -126,22 +171,46 @@ const EditarPerfil = () => {
   );
 
   useEffect(() => {
+    const redirectLogin = async () => {
+      try {
+        const refresh_token = await getSecureData('refresh_token');
+        if (!refresh_token) {
+          navigation.reset({
+            index: 1,
+            routes: [
+              { name: 'Home' },
+              { name: 'Login' },
+            ],
+          });
+          return;
+        }
+      } catch (error) {}
+    };
+    redirectLogin();
+  }, []);
+
+  useEffect(() => {
     const checkLoginStatus = async () => {
       try {
         const refresh_token = await getSecureData('refresh_token');
-        if (refresh_token) {
-          setIsLoggedIn(true);
-        } else {
-          setIsLoggedIn(false);
-        }
+        setIsLoggedIn(!!refresh_token);
       } catch (error) {
         console.log('Erro ao verificar login:', error);
         setIsLoggedIn(false);
       }
     };
-
     checkLoginStatus();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      emailOriginalRef.current = String(user.email || '')
+        .trim()
+        .toLowerCase();
+
+      telefoneOriginalRef.current = normalizarTelefone(user.telefone);
+    }
+  }, [user]);
 
   useEffect(() => {
     const renderizarDadosPerfil = () => {
@@ -171,7 +240,6 @@ const EditarPerfil = () => {
         setEmail(user.email || '');
         setChavePix(user.chave_pix || '');
 
-        // Mapeamento seguro para o Picker
         if (user.tipo_pix) {
           const pixLower = user.tipo_pix.toLowerCase().trim();
           if (['cpf', 'cnpj', 'cpf/cnpj'].includes(pixLower)) {
@@ -190,11 +258,9 @@ const EditarPerfil = () => {
         }
       }
     };
-
     renderizarDadosPerfil();
   }, [user, avatarVersion]);
 
-  // date picker handlers
   const showDatePicker = () => setDatePickerVisibility(true);
   const hideDatePicker = () => setDatePickerVisibility(false);
   const handleConfirmDate = date => {
@@ -205,10 +271,7 @@ const EditarPerfil = () => {
   const selecionarImagem = () => {
     setUploadAvatar(false);
     launchImageLibrary(
-      {
-        mediaType: 'photo',
-        quality: 0.8,
-      },
+      { mediaType: 'photo', quality: 0.8 },
       response => {
         if (response.didCancel) {
           // cancelado
@@ -241,130 +304,9 @@ const EditarPerfil = () => {
     }
   };
 
-  const startVerificationFlow = async (queue, nomeUsuario) => {
-    if (!queue || queue.length === 0) return;
-    setVerificationQueue(queue);
-    setCurrentVerificationIndex(0);
-    await sendCurrentCode(queue[0], nomeUsuario);
-    setIsVerificationModalVisible(true);
-  };
-
-  const sendCurrentCode = async (item, nomeUsuario) => {
-    try {
-      setIsSendingCode(true);
-      setResendCountdown(60);
-      startCountdown();
-      const resp = await sendVerificationCode(
-        item,
-        nomeUsuario,
-        inserirGerarCodigoConfirmacao,
-      );
-      setIsSendingCode(false);
-      if (!resp || !resp.success) {
-        setMsgIconColorAlertModal('#9c053a');
-        setMsgIconAlertModal('error-outline');
-        setMsgTitleAlertModal('ERRO');
-        setMsgDescAlertModal('Falha ao enviar código. Tente novamente.');
-        setShowAlertModal(true);
-      }
-    } catch (err) {
-      setIsSendingCode(false);
-      setMsgIconColorAlertModal('#9c053a');
-      setMsgIconAlertModal('error-outline');
-      setMsgTitleAlertModal('ERRO');
-      setMsgDescAlertModal('Falha ao enviar código. Tente novamente.');
-      setShowAlertModal(true);
-    }
-  };
-
-  useEffect(() => {
-    let timer;
-    if (resendCountdown > 0) {
-      timer = setInterval(() => {
-        setResendCountdown(s => {
-          if (s <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return s - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [resendCountdown]);
-
-  const startCountdown = () => {
-    setResendCountdown(60);
-  };
-
-  const resendCurrentCode = async () => {
-    const item = verificationQueue[currentVerificationIndex];
-    if (!item) return;
-    if (resendCountdown > 0) return;
-    let nomeUsuario = await AsyncStorage.getItem('temp_nome_editar_perfil');
-    await sendCurrentCode(item, nomeUsuario);
-  };
-
-  const onChangeDigit = (text, idx) => {
-    if (!text) {
-      const next = [...codeDigits];
-      next[idx] = '';
-      setCodeDigits(next);
-      return;
-    }
-
-    if (text.length > 1) {
-      const chars = text.replace(/\s/g, '').split('').slice(0, 5);
-      const next = [...codeDigits];
-      for (let i = 0; i < 5; i++) {
-        next[i] = chars[i] || '';
-      }
-      setCodeDigits(next);
-      const firstEmpty = next.findIndex(c => c === '');
-      if (firstEmpty === -1) {
-        inputRefs[4].current && inputRefs[4].current.blur();
-      } else {
-        inputRefs[firstEmpty].current && inputRefs[firstEmpty].current.focus();
-      }
-      return;
-    }
-
-    const char = text[text.length - 1];
-    if (!/^\d$/.test(char)) return;
-
-    const next = [...codeDigits];
-    next[idx] = char;
-    setCodeDigits(next);
-
-    if (idx < 4) {
-      inputRefs[idx + 1].current && inputRefs[idx + 1].current.focus();
-    } else {
-      Keyboard.dismiss();
-    }
-  };
-
-  const onKeyPress = (e, idx) => {
-    if (e.nativeEvent.key === 'Backspace') {
-      if (codeDigits[idx] === '') {
-        if (idx > 0) {
-          inputRefs[idx - 1].current && inputRefs[idx - 1].current.focus();
-          const next = [...codeDigits];
-          next[idx - 1] = '';
-          setCodeDigits(next);
-        }
-      } else {
-        const next = [...codeDigits];
-        next[idx] = '';
-        setCodeDigits(next);
-      }
-    }
-  };
-
-  const getComposedCode = () => codeDigits.join('');
-
   const confirmCurrentCode = async () => {
-    const code = getComposedCode();
-    if (code.length !== 5) {
+    const composedCode = activeHook.code.join('');
+    if (composedCode.length !== 5) {
       setMsgIconColorAlertModal('#9c053a');
       setMsgIconAlertModal('error-outline');
       setMsgTitleAlertModal('ATENÇÃO');
@@ -373,106 +315,37 @@ const EditarPerfil = () => {
       return;
     }
 
-    const current = verificationQueue[currentVerificationIndex];
-    if (!current) return;
-
-    const result = await verifyCode(code, selectCodigoConfirmacao);
-    if (!result || !result.success) {
+    const success = await activeHook.verifyCode();
+    if (!success) {
       setMsgIconColorAlertModal('#9c053a');
       setMsgIconAlertModal('error-outline');
       setMsgTitleAlertModal('CÓDIGO INVÁLIDO');
-      setMsgDescAlertModal('Código inválido. Tente novamente.');
+      setMsgDescAlertModal(activeHook.error || 'Código inválido ou expirado.');
       setShowAlertModal(true);
-      return;
-    }
-
-    setMsgIconColorAlertModal('#188211');
-    setMsgIconAlertModal('task-alt');
-    setMsgTitleAlertModal('OK');
-    setMsgDescAlertModal('Código confirmado.');
-    setShowAlertModal(true);
-
-    setCodeDigits(['', '', '', '', '']);
-
-    const nextIndex = currentVerificationIndex + 1;
-    if (nextIndex < verificationQueue.length) {
-      setCurrentVerificationIndex(nextIndex);
-      let nomeUsuario = await AsyncStorage.getItem('temp_nome_editar_perfil');
-      await sendCurrentCode(verificationQueue[nextIndex], nomeUsuario);
-      setTimeout(
-        () => inputRefs[0].current && inputRefs[0].current.focus(),
-        250,
-      );
-    } else {
-      setIsVerificationModalVisible(false);
-      await completeProfileUpdateAfterVerification();
     }
   };
 
-  const completeProfileUpdateAfterVerification = async () => {
-    if (!pendingProfileData) return;
-    const {
-      serieLogado: serie,
-      nome: novoNome,
-      sobreNome: novoSobre,
-      selectedDate: data,
-      numero,
-      email: novoEmail,
-      tipochavePix: novoTipoPix,
-      chavePix: novaChave,
-      uploadAvatar: novoUploadAvatar,
-      avatar: novoAvatar,
-    } = pendingProfileData;
-
-    try {
-      const nomeCompletoEditado = `${novoNome} ${novoSobre}`.trim();
-      const result = await editarUsuario(
-        serie,
-        nomeCompletoEditado,
-        '',
-        data ? data.toLocaleDateString() : '',
-        numero,
-        novoEmail,
-        novoTipoPix,
-        novaChave,
-        novoUploadAvatar,
-        novoAvatar,
-      );
-
-      if (result?.status === 'sucesso') {
-        setMsgIconColorAlertModal('#188211');
-        setMsgIconAlertModal('task-alt');
-        setMsgTitleAlertModal('SUCESSO');
-        setMsgDescAlertModal('Perfil atualizado com sucesso!');
-        setShowAlertModal(true);
-
-        setPendingProfileData(null);
-      } else {
-        setMsgIconColorAlertModal('#9c053a');
-        setMsgIconAlertModal('error-outline');
-        setMsgTitleAlertModal('ERRO');
-        setMsgDescAlertModal('Falha ao atualizar perfil. Tente novamente.');
-        setShowAlertModal(true);
-      }
-    } catch (err) {
-      console.warn('editarUsuario error', err);
-      setMsgIconColorAlertModal('#9c053a');
-      setMsgIconAlertModal('error-outline');
-      setMsgTitleAlertModal('ERRO');
-      setMsgDescAlertModal('Falha ao atualizar perfil. Tente novamente.');
+  const resendCurrentCode = async () => {
+    if (activeHook.timer > 0) return;
+    await activeHook.generateCode();
+    if (activeHook.success) {
+      setMsgIconColorAlertModal('#188211');
+      setMsgIconAlertModal('task-alt');
+      setMsgTitleAlertModal('SUCESSO');
+      setMsgDescAlertModal(activeHook.success);
       setShowAlertModal(true);
     }
   };
 
   const handleSalvarPerfil = async () => {
-    alert('faltando alguns ajustes')
-    return
+    if (salvamentoEmAndamento.current) return;
+
     if (
-      nome === '' ||
-      sobreNome === '' ||
-      telefone === '' ||
-      email === '' ||
-      chavePix === ''
+      !nome.trim() ||
+      !sobreNome.trim() ||
+      !telefone.trim() ||
+      !email.trim() ||
+      !chavePix.trim()
     ) {
       setMsgIconColorAlertModal('#9c053a');
       setMsgIconAlertModal('error-outline');
@@ -482,63 +355,86 @@ const EditarPerfil = () => {
       return;
     }
 
-    let telefone_antigo = user?.telefone || '';
-    let email_antigo = user?.email || '';
+    const telefoneAntigo = telefoneOriginalRef.current;
+    const telefoneNovo = normalizarTelefone(telefone);
 
-    let numero = '+55 ' + telefone;
-    let dadosTelefone = usuarios.filter(
-      item => item.telefone === numero && item.telefone !== telefone_antigo,
-    );
-    if (dadosTelefone.length > 0) {
-      setMsgIconColorAlertModal('#9c053a');
-      setMsgIconAlertModal('error-outline');
-      setMsgTitleAlertModal('ATENÇÃO');
-      setMsgDescAlertModal(
-        'Este telefone já está cadastrado, tente novamente!',
+    const emailAntigo = emailOriginalRef.current;
+    const emailNovo = email.trim().toLowerCase();
+
+    const telefoneMudou = telefoneNovo !== telefoneAntigo;
+    const emailMudou = emailNovo !== emailAntigo;
+
+    const telefoneLimpo = `+55 ${telefone.trim()}`;
+    const nomeCompleto = `${nome.trim()} ${sobreNome.trim()}`;
+    const dataFormatada = formatarDataParaAPI(selectedDate);
+
+    salvamentoEmAndamento.current = true;
+    setSalvandoPerfil(true);
+
+    try {
+      const result = await editarUsuario(
+        serieLogado,
+        nomeCompleto,
+        '',
+        dataFormatada,
+        telefoneLimpo,
+        emailNovo,
+        tipochavePix,
+        chavePix.trim(),
+        uploadAvatar,
+        avatar,
       );
-      setShowAlertModal(true);
-      return;
-    }
 
-    let dadosEmail = usuarios.filter(
-      item => item.email === email && item.email !== email_antigo,
-    );
-    if (dadosEmail.length === 1) {
+      if (result?.status !== 'sucesso') {
+        throw new Error(result?.message || 'Erro ao atualizar perfil.');
+      }
+
+      emailOriginalRef.current = emailNovo;
+      telefoneOriginalRef.current = telefoneNovo;
+
+      if (result.data?.confirmation_token) {
+        await AsyncStorage.setItem('confirmation_token', result.data.confirmation_token);
+      }
+
+      const queue = [];
+      if (emailMudou) queue.push({ type: 'email', value: emailNovo });
+      if (telefoneMudou) queue.push({ type: 'telefone', value: telefoneLimpo });
+
+      if (queue.length > 0) {
+        verificationQueueRef.current = queue;
+        currentVerificationIndexRef.current = 0;
+
+        phoneConfirmationHook.setCode(['', '', '', '', '']);
+        emailConfirmationHook.setCode(['', '', '', '', '']);
+
+        setVerificationQueue(queue);
+        setCurrentVerificationIndex(0);
+        setIsVerificationModalVisible(true);
+
+        if (queue[0].type === 'telefone') {
+          await phoneConfirmationHook.generateCode();
+        } else {
+          await emailConfirmationHook.generateCode();
+        }
+      } else {
+        setUploadAvatar(false);
+        setMsgIconColorAlertModal('#188211');
+        setMsgIconAlertModal('task-alt');
+        setMsgTitleAlertModal('SUCESSO');
+        setMsgDescAlertModal('Perfil atualizado com sucesso!');
+        setShowAlertModal(true);
+      }
+    } catch (error) {
+      console.warn('Erro ao salvar perfil:', error);
       setMsgIconColorAlertModal('#9c053a');
       setMsgIconAlertModal('error-outline');
-      setMsgTitleAlertModal('ATENÇÃO');
-      setMsgDescAlertModal('Este email já existe, tente novamente!');
+      setMsgTitleAlertModal('ERRO');
+      setMsgDescAlertModal(error.message || 'Falha ao atualizar perfil.');
       setShowAlertModal(true);
-      return;
+    } finally {
+      salvamentoEmAndamento.current = false;
+      setSalvandoPerfil(false);
     }
-
-    const dadosPendentes = {
-      serieLogado,
-      nome,
-      sobreNome,
-      selectedDate,
-      numero,
-      email,
-      tipochavePix,
-      chavePix,
-      uploadAvatar,
-      avatar,
-    };
-
-    const queue = [];
-    if (numero !== telefone_antigo)
-      queue.push({type: 'telefone', value: numero});
-    if (email !== email_antigo) queue.push({type: 'email', value: email});
-
-    if (queue.length === 0) {
-      setPendingProfileData(dadosPendentes);
-      await completeProfileUpdateAfterVerification();
-      return;
-    }
-
-    setPendingProfileData(dadosPendentes);
-    await AsyncStorage.setItem('temp_nome_editar_perfil', nome);
-    await startVerificationFlow(queue, nome);
   };
 
   const currentVerification = verificationQueue[currentVerificationIndex];
@@ -604,13 +500,24 @@ const EditarPerfil = () => {
               </Text>
 
               <View style={styles.codeRow}>
-                {codeDigits.map((d, i) => (
+                {activeHook.code.map((d, i) => (
                   <TextInput
                     key={`digit-${i}`}
                     ref={inputRefs[i]}
                     value={d}
-                    onChangeText={t => onChangeDigit(t, i)}
-                    onKeyPress={e => onKeyPress(e, i)}
+                    onChangeText={t => {
+                      const newCode = [...activeHook.code];
+                      newCode[i] = t.replace(/\D/g, '').slice(-1);
+                      activeHook.setCode(newCode);
+                      if (t && i < 4) {
+                        inputRefs[i + 1]?.current?.focus();
+                      }
+                    }}
+                    onKeyPress={e => {
+                      if (e.nativeEvent.key === 'Backspace' && !activeHook.code[i] && i > 0) {
+                        inputRefs[i - 1]?.current?.focus();
+                      }
+                    }}
                     keyboardType="numeric"
                     maxLength={1}
                     style={styles.codeInput}
@@ -631,20 +538,20 @@ const EditarPerfil = () => {
                 <TouchableOpacity
                   style={styles.confirmButton}
                   onPress={confirmCurrentCode}
-                  disabled={codeDigits.join('').length !== 5}>
+                  disabled={activeHook.loading || activeHook.code.join('').length !== 5}>
                   <Text style={{color: '#fff', fontWeight: 'bold'}}>
-                    Confirmar
+                    {activeHook.loading ? 'A validar...' : 'Confirmar'}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={resendCurrentCode}
-                  disabled={resendCountdown > 0}
+                  disabled={activeHook.timer > 0}
                   style={{marginLeft: 12}}>
                   <Text
-                    style={{color: resendCountdown > 0 ? '#999' : '#007bff'}}>
-                    {resendCountdown > 0
-                      ? `Reenviar em ${resendCountdown}s`
+                    style={{color: activeHook.timer > 0 ? '#999' : '#007bff'}}>
+                    {activeHook.timer > 0
+                      ? `Reenviar em ${activeHook.timer}s`
                       : 'Reenviar código'}
                   </Text>
                 </TouchableOpacity>
@@ -655,8 +562,14 @@ const EditarPerfil = () => {
                 onPress={() => {
                   setIsVerificationModalVisible(false);
                   setVerificationQueue([]);
-                  setPendingProfileData(null);
-                  setCodeDigits(['', '', '', '', '']);
+                  verificationQueueRef.current = [];
+                  currentVerificationIndexRef.current = 0;
+
+                  phoneConfirmationHook.setCode(['', '', '', '', '']);
+                  emailConfirmationHook.setCode(['', '', '', '', '']);
+
+                  salvamentoEmAndamento.current = false;
+                  setSalvandoPerfil(false);
                 }}>
                 <Text style={{color: '#ff3b30'}}>Cancelar</Text>
               </TouchableOpacity>
@@ -757,15 +670,41 @@ const EditarPerfil = () => {
 
           <TouchableOpacity
             onPress={handleSalvarPerfil}
-            style={styles.saveButton}>
-            <Text
-              style={{
-                color: '#fff',
-                fontSize: 17,
-                fontFamily: 'Montserrat-Bold',
-              }}>
-              Salvar
-            </Text>
+            disabled={salvandoPerfil}
+            activeOpacity={0.8}
+            style={[
+              styles.saveButton,
+              salvandoPerfil && styles.saveButtonDisabled,
+            ]}
+          >
+            {salvandoPerfil ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <ActivityIndicator
+                  size="small"
+                  color="#fff"
+                  style={{ marginRight: 10 }}
+                />
+                <Text
+                  style={{
+                    color: '#fff',
+                    fontSize: 17,
+                    fontFamily: 'Montserrat-Bold',
+                  }}
+                >
+                  Processando...
+                </Text>
+              </View>
+            ) : (
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 17,
+                  fontFamily: 'Montserrat-Bold',
+                }}
+              >
+                Salvar
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -774,13 +713,61 @@ const EditarPerfil = () => {
 };
 
 // ---------- other tabs ----------
+
 const AlterarSenha = () => {
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
+
+  const {alterarSenha, loading} = UseAlterarSenha();
+
+  const handleModificarSenha = async () => {
+    if (salvandoSenha || loading) {
+      return;
+    }
+
+    if (!senhaAtual || !novaSenha || !confirmarSenha) {
+      Alert.alert('Atenção', 'Preencha todos os campos de senha.');
+      return;
+    }
+
+    if (novaSenha !== confirmarSenha) {
+      Alert.alert('Erro', 'A nova senha e a confirmação não coincidem.');
+      return;
+    }
+
+    setSalvandoSenha(true);
+
+    try {
+      const resultado = await alterarSenha(senhaAtual, novaSenha);
+
+      if (resultado?.status === 'sucesso') {
+        Alert.alert('Sucesso', 'Senha alterada com sucesso!');
+        setSenhaAtual('');
+        setNovaSenha('');
+        setConfirmarSenha('');
+      } else {
+        Alert.alert('Erro', resultado?.message || 'Não foi possível alterar a senha.');
+      }
+    } catch (error) {
+      console.warn('Erro ao alterar senha:', error);
+      Alert.alert('Erro', 'Não foi possível alterar a senha. Tente novamente.');
+    } finally {
+      setSalvandoSenha(false);
+    }
+  };
+
+  const carregando = salvandoSenha || loading;
 
   return (
-    <ScrollView contentContainerStyle={{...styles.scroll, flexGrow: 1, backgroundColor: '#f0eded', paddingBottom: 120}}>
+    <ScrollView
+      contentContainerStyle={{
+        ...styles.scroll,
+        flexGrow: 1,
+        backgroundColor: '#f0eded',
+        paddingBottom: 120,
+      }}>
       <View style={styles.form}>
         <Text style={styles.label}>Senha atual</Text>
         <TextInput
@@ -788,6 +775,7 @@ const AlterarSenha = () => {
           secureTextEntry
           value={senhaAtual}
           onChangeText={setSenhaAtual}
+          editable={!carregando}
         />
 
         <Text style={styles.label}>Nova senha</Text>
@@ -796,6 +784,7 @@ const AlterarSenha = () => {
           secureTextEntry
           value={novaSenha}
           onChangeText={setNovaSenha}
+          editable={!carregando}
         />
 
         <Text style={styles.label}>Confirmar nova senha</Text>
@@ -804,22 +793,30 @@ const AlterarSenha = () => {
           secureTextEntry
           value={confirmarSenha}
           onChangeText={setConfirmarSenha}
+          editable={!carregando}
         />
 
-        <TouchableOpacity style={styles.saveButton}>
+        <TouchableOpacity
+          onPress={handleModificarSenha}
+          disabled={carregando}
+          style={[
+            styles.saveButton,
+            carregando && {opacity: 0.6},
+          ]}>
           <Text
             style={{
               color: '#fff',
               fontSize: 17,
               fontFamily: 'Montserrat-Bold',
             }}>
-            Modificar Senha
+            {carregando ? 'A guardar...' : 'Salvar'}
           </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 };
+
 
 const MeuPerfil = () => {
   const [index, setIndex] = useState(0);
@@ -890,6 +887,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
     borderRadius: 8,
     borderWidth: 1,
+    color: '#353734',
     borderColor: '#ddd',
     textAlign: 'center',
     fontSize: 22,
@@ -902,7 +900,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
-
   alertModal: {
     backgroundColor: '#fff',
     padding: 25,
@@ -917,11 +914,13 @@ const styles = StyleSheet.create({
   },
   alertTitle: {
     fontSize: 22,
+    color: '#353437',
     fontFamily: 'Montserrat-Bold',
     marginBottom: 8,
   },
   alertMessage: {
-    fontSize: 19,
+    fontSize: 17,
+    color: '#353437',
     fontFamily: 'Montserrat-Regular',
     textAlign: 'center',
     marginBottom: 20,
@@ -940,11 +939,11 @@ const styles = StyleSheet.create({
   alertButtonText: {
     width: 100,
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     textAlign: 'center',
     fontFamily: 'Montserrat-Regular',
+    data: '...',
   },
-
   scroll: {
     padding: 20,
   },
@@ -1054,5 +1053,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
 });

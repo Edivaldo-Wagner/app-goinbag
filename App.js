@@ -56,7 +56,6 @@ import FinalizarCadastramentoMala from './src/screens/finalizar-cadastramento-ma
 import FinalizarAtualizarMala from './src/screens/finalizar-atualizar-mala/FinalizarAtualizarMala';
 
 import MeuPerfil from './src/components/meuPerfil/MeuPerfil';
-import Notificacoes from './src/screens/notificacoes/Notificacoes';
 import Chat from './src/screens/chat/Chat';
 import AcompanhamentoViagem from './src/screens/acompanhamento-viagem/AcompanhamentoViagem';
 
@@ -293,12 +292,6 @@ const AppContent = () => {
         <Stack.Screen
           name="MeuPerfil"
           component={MeuPerfil}
-          options={{headerShown: false}}
-        />
-
-        <Stack.Screen
-          name="Notificacoes"
-          component={Notificacoes}
           options={{headerShown: false}}
         />
 

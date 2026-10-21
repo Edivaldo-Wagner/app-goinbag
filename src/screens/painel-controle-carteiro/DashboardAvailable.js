@@ -93,7 +93,7 @@ export default function TripsProgressTraveler() {
     buscarViagensDisponibilizadasCarteiro,
   } = UseViagensDisponibilizadas();
 
-  console.log('FEITO:', viagensDisponibilizadasCarteiro);
+  //console.log('FEITO:', viagensDisponibilizadasCarteiro);
 
   const {usuarios} = UseUsuarios();
 
@@ -110,7 +110,7 @@ export default function TripsProgressTraveler() {
     let resultCancelarViagemEmNegociacao =
       await inserirCancelarViagemEmNegociacao(serieViagemNegociacao, chave_pix);
 
-    console.log('Resultado direto da API:', resultCancelarViagemEmNegociacao);
+    //console.log('Resultado direto da API:', resultCancelarViagemEmNegociacao);
     if (resultCancelarViagemEmNegociacao.status == 'sucesso') {
       setsendingData(false);
       setMsgIconColorAlertModal('#188211');
@@ -179,7 +179,7 @@ export default function TripsProgressTraveler() {
       );
     }
 
-    console.log(verificar_fotografias);
+    //console.log(verificar_fotografias);
 
     if (verificar_fotografias == true) {
       setShowBtnModalConfirmacaoFotografias(false);
@@ -344,7 +344,7 @@ export default function TripsProgressTraveler() {
   };
 
   const redirectChat = async serie_viagem_negociacao => {
-    console.log(serie_viagem_negociacao);
+    //console.log(serie_viagem_negociacao);
 
     const dadosChat = viagensDisponibilizadasCarteiro.filter(
       item => item.serie_viagem_negociacao === serie_viagem_negociacao,

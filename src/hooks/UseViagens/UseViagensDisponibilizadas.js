@@ -18,27 +18,27 @@ export default function UseViagensCarteiro() {
     useState(null);
 
   const buscarViagensDisponibilizadasCarteiro = async () => {
-    console.log('=== BUSCAR VIAGENS ===');
+    //console.log('=== BUSCAR VIAGENS ===');
 
     try {
       setLoadingViagensDisponibilizadasCarteiro(true);
       setErroViagensDisponibilizadasCarteiro(null);
 
-      console.log('loading:', loading);
-      console.log('user:', user);
-      console.log('accessToken existe:', !!accessToken);
+      //console.log('loading:', loading);
+      //console.log('user:', user);
+      //console.log('accessToken existe:', !!accessToken);
 
       const responseViagensDisponibilizadasCarteiro =
         await fetchViagensDisponibilizadas(authFetch);
 
-      console.log('response:', responseViagensDisponibilizadasCarteiro);
+      //console.log('response:', responseViagensDisponibilizadasCarteiro);
 
-      console.log('status:', responseViagensDisponibilizadasCarteiro.status);
+      //console.log('status:', responseViagensDisponibilizadasCarteiro.status);
 
       const rawTextViagensDisponibilizadasCarteiro =
         await responseViagensDisponibilizadasCarteiro.text();
 
-      console.log('RAW RESPONSE:', rawTextViagensDisponibilizadasCarteiro);
+      //console.log('RAW RESPONSE:', rawTextViagensDisponibilizadasCarteiro);
 
       if (!responseViagensDisponibilizadasCarteiro.ok) {
         throw new Error(
@@ -50,17 +50,17 @@ export default function UseViagensCarteiro() {
         rawTextViagensDisponibilizadasCarteiro,
       );
 
-      console.log('DATA:', dataViagensDisponibilizadasCarteiro);
+      //console.log('DATA:', dataViagensDisponibilizadasCarteiro);
 
       const resultados = dataViagensDisponibilizadasCarteiro.resultados || [];
 
-      console.log('RESULTADOS:', resultados);
-      console.log('TOTAL:', resultados.length);
+      //console.log('RESULTADOS:', resultados);
+      //console.log('TOTAL:', resultados.length);
 
       setViagensDisponibilizadasCarteiro(resultados);
 
       // Imprime o resultado processado da variável local (já que o estado só atualiza no próximo render)
-      console.log('FEITO (Dados salvos no estado):', resultados);
+      //console.log('FEITO (Dados salvos no estado):', resultados);
     } catch (err) {
       console.log('ERRO BUSCANDO VIAGENS:', err);
 
@@ -82,11 +82,6 @@ export default function UseViagensCarteiro() {
 
     buscarViagensDisponibilizadasCarteiro();
   }, [loading, accessToken]);
-
-  // Log executado quando o estado realmente for atualizado no React
-  useEffect(() => {
-    console.log('ESTADO ATUALIZADO (viagensDisponibilizadasCarteiro):', viagensDisponibilizadasCarteiro);
-  }, [viagensDisponibilizadasCarteiro]);
 
   return {
     viagensDisponibilizadasCarteiro,

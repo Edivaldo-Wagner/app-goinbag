@@ -222,7 +222,7 @@ export default function DashboardClient() {
     let resultCancelarViagemEmNegociacao =
       await inserirCancelarViagemEmNegociacao(serieViagemNegociacao, chave_pix);
 
-    console.log('Resultado direto da API:', resultCancelarViagemEmNegociacao);
+    //console.log('Resultado direto da API:', resultCancelarViagemEmNegociacao);
     if (resultCancelarViagemEmNegociacao.status == 'sucesso') {
       setsendingData(false);
       setMsgIconColorAlertModal('#188211');
@@ -474,7 +474,7 @@ export default function DashboardClient() {
       nome_cliente,
     );
 
-    console.log('Resultado direto da API:', resultDadosDestinatario);
+    //console.log('Resultado direto da API:', resultDadosDestinatario);
     if (resultDadosDestinatario.status == 'sucesso') {
       setsendingData(false);
       setMsgIconColorAlertModal('#188211');

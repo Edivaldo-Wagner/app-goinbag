@@ -248,7 +248,7 @@ export default function ClientTripsConcludedNegotiations({
    * ============================================================
    */
 
-  console.log('=== VIAGENS PARA EXIBIR NO RN ===', filteredNegotiations);
+  //console.log('=== VIAGENS PARA EXIBIR NO RN ===', filteredNegotiations);
 
   /*
    * ============================================================

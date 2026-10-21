@@ -17,7 +17,8 @@ import {UserRoundPlus, UserRoundCheck} from 'lucide-react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {useAuth} from '../../context/AuthContext';
-import UseNotificacoesCliente from '../../hooks/UseNotificacoes/UseNotificacoesCliente';
+import NotificationsModal from '../notifications/NotificationsModal';
+import UseNotifications from '../../hooks/UseNotifications/UseNotifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {getSecureData, clearSecureStorage} from '../../utils/secureStorage';
 import Config from 'react-native-config';
@@ -41,7 +42,6 @@ export default function HeaderCliente() {
   const navigationHeader = useNavigation();
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const [modalPerfilUsuario, setModalPerfilUsuario] = useState(false);
-  const [modalNotificacoes, setModalNotificacoes] = useState(false);
   const [showMenuModal, setShowMenuModal] = useState(false);
 
   const formatarDataNotificacao = dataString => {
@@ -50,15 +50,20 @@ export default function HeaderCliente() {
 
   const {user} = useAuth();
 
-  const {notificacoesCliente, buscarNotificacoesCliente} =
-    UseNotificacoesCliente();
+  const {
+    notificationsOpen,
+    setNotificationsOpen,
+    notifications,
+    loadingNotifications,
+    confirmDeleteNotifications,
+    setConfirmDeleteNotifications,
+    handleNotifications,
+    removeNotification,
+    buscarNotifications,
+  } = UseNotifications();
 
-  useEffect(() => {
-    const fetchNotificacoesGerais = async () => {
-      await buscarNotificacoesCliente();
-    };
-    fetchNotificacoesGerais();
-  }, []);
+  // Quantidade de notificações não lidas (viewed === false)
+  const unreadNotifications = notifications.filter((n) => !n.viewed).length;
 
   useEffect(() => {
     const redirectLogin = async () => {
@@ -74,7 +79,7 @@ export default function HeaderCliente() {
   }, []);
 
   const handleNotificacoes = async () => {
-    setModalNotificacoes(true);
+    handleNotifications();
   };
 
   const handleLogout = async () => {
@@ -128,6 +133,13 @@ export default function HeaderCliente() {
                     color="#555"
                     style={styles.modalOptionIcon}
                   />
+                  {unreadNotifications > 0 && (
+                    <View style={styles.notificationBadge}>
+                      <Text style={styles.notificationBadgeText} numberOfLines={1}>
+                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                      </Text>
+                    </View>
+                  )}
                   <Text style={styles.modalOptionText}>Notificações</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -152,60 +164,15 @@ export default function HeaderCliente() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      <Modal
-        visible={modalNotificacoes}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalNotificacoes(false)}>
-        <TouchableWithoutFeedback onPress={() => setModalNotificacoes(false)}>
-          <View
-            style={[
-              styles.modalOverlay,
-              {justifyContent: 'flex-start', alignItems: 'flex-end'},
-            ]}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.notificationsModal}>
-                <View style={styles.notificationsHeader}>
-                  <Text style={styles.notificationsTitle}>Notificações</Text>
-                  <TouchableOpacity onPress={() => setModalNotificacoes(false)}>
-                    <MaterialIcons name="close" size={24} color="#555" />
-                  </TouchableOpacity>
-                </View>
-                <ScrollView showsVerticalScrollIndicator={false}>
-                  {notificacoesCliente.length === 0 && (
-                    <Text style={styles.emptyNotifications}>
-                      Nenhuma notificação.
-                    </Text>
-                  )}
-                  {notificacoesCliente.map((notificacao, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.notificationItem}>
-                      <Image
-                        source={{
-                          uri: `${Config.URL_MAIN}${notificacao.serie_quem_notificou}`,
-                        }}
-                        style={styles.notificationAvatar}
-                      />
-                      <View style={styles.notificationTextContainer}>
-                        <Text style={styles.notificationType}>
-                          Nova Notificação
-                        </Text>
-                        <Text numberOfLines={2} style={styles.notificationBody}>
-                          {notificacao.notificacao}
-                        </Text>
-                        <Text style={styles.notificationDate}>
-                          {formatarDataNotificacao(notificacao.data)}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+      <NotificationsModal
+        visible={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        notifications={notifications}
+        loading={loadingNotifications}
+        confirmDeleteNotifications={confirmDeleteNotifications}
+        setConfirmDeleteNotifications={setConfirmDeleteNotifications}
+        removeNotification={removeNotification}
+      />
 
       <Modal
         visible={showMenuModal}
@@ -349,15 +316,6 @@ export default function HeaderCliente() {
               onPress={() => setShowMenuModal(true)}
               style={styles.menuSquareTouch}>
               <MaterialIcons name="menu" size={26} color="#fff" />
-              {notificacoesCliente.length > 0 && (
-                <View style={styles.notificationBadgeMenu}>
-                  <Text style={styles.notificationBadgeTextMenu}>
-                    {notificacoesCliente.length > 99
-                      ? '99+'
-                      : notificacoesCliente.length}
-                  </Text>
-                </View>
-              )}
             </TouchableOpacity>
           </LinearGradient>
 
@@ -385,6 +343,13 @@ export default function HeaderCliente() {
                 color="#fff"
                 style={styles.arrowBarIcon}
               />
+              {unreadNotifications > 0 && (
+                    <View style={[styles.notificationBadge, { top: -5, right: 50 }]}>
+                      <Text style={styles.notificationBadgeText} numberOfLines={1}>
+                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                      </Text>
+                    </View>
+                  )}
 
               <View style={{width: 15}} />
             </TouchableOpacity>
@@ -445,25 +410,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
-  notificationBadgeMenu: {
+  notificationBadge: {
     position: 'absolute',
-    right: -8,
-    top: -8,
-    backgroundColor: '#FF4136',
-    borderRadius: 9,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
+    top: 0,
+    right: 120,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    backgroundColor: '#ae0b42',
     alignItems: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: '#fff',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 5,
   },
-  notificationBadgeTextMenu: {
-    color: '#fff',
+  notificationBadgeText: {
+    color: '#FFFFFF',
     fontSize: 10,
+    lineHeight: 12,
     fontFamily: 'Montserrat-Bold',
     textAlign: 'center',
+    includeFontPadding: false,
   },
   profileInfiniteBarGradient: {
     height: 54,
@@ -535,77 +508,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Montserrat-Regular',
     color: '#333',
-  },
-  notificationsModal: {
-    backgroundColor: '#fff',
-    width: width * 0.85,
-    maxWidth: 360,
-    padding: 15,
-    borderRadius: 15,
-    marginTop: 85,
-    marginRight: 20,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 8,
-    maxHeight: '70%',
-  },
-  notificationsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  notificationsTitle: {
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    color: '#333',
-  },
-  emptyNotifications: {
-    textAlign: 'center',
-    color: '#888',
-    fontFamily: 'Montserrat-Regular',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  notificationItem: {
-    flexDirection: 'row',
-    marginBottom: 15,
-    alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    padding: 10,
-    borderRadius: 10,
-  },
-  notificationAvatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    marginRight: 12,
-  },
-  notificationTextContainer: {
-    flex: 1,
-  },
-  notificationType: {
-    color: '#1a7fe7',
-    fontSize: 15,
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 2,
-  },
-  notificationBody: {
-    color: '#555',
-    fontSize: 14,
-    fontFamily: 'Montserrat-Regular',
-    lineHeight: 18,
-  },
-  notificationDate: {
-    fontSize: 11,
-    color: '#999',
-    marginTop: 5,
-    fontFamily: 'Montserrat-Regular',
   },
   menuContainer: {
     backgroundColor: '#007BFF',

@@ -36,3 +36,11 @@ subprojects { subproject ->
         }
     }
 }
+
+allprojects {
+    repositories {
+        mavenLocal()
+        google()
+        mavenCentral()
+    }
+}

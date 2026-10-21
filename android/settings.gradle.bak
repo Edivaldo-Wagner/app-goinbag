@@ -1,0 +1,14 @@
+pluginManagement {
+    includeBuild("../node_modules/@react-native/gradle-plugin")
+    repositories {
+        mavenLocal()
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'app_goinbag'
+
+include ':app'
+includeBuild('../node_modules/@react-native/gradle-plugin')

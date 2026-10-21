@@ -20,33 +20,33 @@ export default function UseViagensDestinatario() {
   ] = useState(null);
 
   const buscarViagensEmNegociacaoDestinatario = async () => {
-    console.log('=== BUSCAR VIAGENS ===');
+    //console.log('=== BUSCAR VIAGENS ===');
 
     try {
       setLoadingViagensEmNegociacaoDestinatario(true);
       setErroViagensEmNegociacaoDestinatario(null);
 
-      console.log('loading:', loading);
-      console.log('user:', user);
-      console.log('accessToken existe:', !!accessToken);
+      //console.log('loading:', loading);
+      //console.log('user:', user);
+      //console.log('accessToken existe:', !!accessToken);
 
       const serie_logado_Destinatario = await AsyncStorage.getItem(
         'serie_logado',
       );
 
-      console.log('serie_logado:', serie_logado_Destinatario);
+      //console.log('serie_logado:', serie_logado_Destinatario);
 
       const responseViagensEmNegociacaoDestinatario =
         await fetchViagensEmNegociacao(authFetch);
 
-      console.log('response:', responseViagensEmNegociacaoDestinatario);
+      //console.log('response:', responseViagensEmNegociacaoDestinatario);
 
-      console.log('status:', responseViagensEmNegociacaoDestinatario.status);
+      //console.log('status:', responseViagensEmNegociacaoDestinatario.status);
 
       const rawTextViagensEmNegociacaoDestinatario =
         await responseViagensEmNegociacaoDestinatario.text();
 
-      console.log('RAW RESPONSE:', rawTextViagensEmNegociacaoDestinatario);
+      //console.log('RAW RESPONSE:', rawTextViagensEmNegociacaoDestinatario);
 
       if (!responseViagensEmNegociacaoDestinatario.ok) {
         throw new Error(
@@ -58,12 +58,12 @@ export default function UseViagensDestinatario() {
         rawTextViagensEmNegociacaoDestinatario,
       );
 
-      console.log('DATA:', dataViagensEmNegociacaoDestinatario);
+      //console.log('DATA:', dataViagensEmNegociacaoDestinatario);
 
       const resultados = dataViagensEmNegociacaoDestinatario.resultados || [];
 
-      console.log('RESULTADOS:', resultados);
-      console.log('TOTAL:', resultados.length);
+      //console.log('RESULTADOS:', resultados);
+      //console.log('TOTAL:', resultados.length);
 
       setViagensEmNegociacaoDestinatario(
         resultados.filter(item => item.receiver?.serie === user.serie),

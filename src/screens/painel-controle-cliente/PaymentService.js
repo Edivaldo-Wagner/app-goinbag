@@ -71,13 +71,13 @@ export const PaymentService = ({ route, navigation }) => {
     paymentService,
   } = UsePaymentServiceTripNegotiation(handleSuccess);
 
-  console.log('kk', pixData)
+  //console.log('kk', pixData)
 
   const qrcode = pixData?.qrcode || pixData?.service_payment_pix_qrcode;
 const copyPaste = pixData?.copyPaste || pixData?.service_payment_pix_copy_paste;
 
-console.log('qrcode', qrcode)
-console.log('copyPaste', copyPaste)
+//console.log('qrcode', qrcode)
+//console.log('copyPaste', copyPaste)
 
   const handleCardChange = (field, value) => {
     setCardData((prev) => ({ ...prev, [field]: value }));

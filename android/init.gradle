@@ -1,0 +1,21 @@
+allprojects {
+    buildscript {
+        repositories {
+            mavenLocal()
+            google()
+            mavenCentral()
+        }
+    }
+}
+
+settingsEvaluated { settings ->
+    settings.pluginManagement {
+        resolutionStrategy {
+            eachPlugin {
+                if (requested.id.id == "org.gradle.toolchains.foojay-resolver-convention") {
+                    useTarget("org.empty:empty:1.0")
+                }
+            }
+        }
+    }
+}

@@ -30,6 +30,64 @@ import {
   clearAppState,
 } from '../../utils/storage';
 
+// Dicionário de mapeamento de aeroportos para as cidades principais corretas
+const AIRPORT_CITY_MAP = [
+  { match: ["nat", "natal", "sao goncalo do amarante"], city: "Natal" },
+  { match: ["jpa", "joao pessoa", "bayeux"], city: "João Pessoa" },
+  { match: ["gru", "guarulhos"], city: "São Paulo" },
+  { match: ["cgh", "congonhas"], city: "São Paulo" },
+  { match: ["vcp", "viracopos", "campinas"], city: "Campinas" },
+  { match: ["gig", "galeao"], city: "Rio de Janeiro" },
+  { match: ["sdu", "santos dumont"], city: "Rio de Janeiro" },
+  { match: ["cnf", "confins", "pampulha"], city: "Belo Horizonte" },
+  { match: ["poa", "porto alegre"], city: "Porto Alegre" },
+  { match: ["cwb", "curitiba"], city: "Curitiba" },
+  { match: ["fln", "florianopolis"], city: "Florianópolis" },
+  { match: ["bsb", "brasilia"], city: "Brasília" },
+  { match: ["gyn", "goiania"], city: "Goiânia" },
+  { match: ["rec", "recife"], city: "Recife" },
+  { match: ["ssa", "salvador"], city: "Salvador" },
+  { match: ["for", "fortaleza"], city: "Fortaleza" },
+  { match: ["mcz", "maceio"], city: "Maceió" },
+  { match: ["aju", "aracaju"], city: "Aracaju" },
+  { match: ["slz", "sao luis"], city: "São Luís" },
+  { match: ["mao", "manaus"], city: "Manaus" },
+  { match: ["bel", "belem"], city: "Belém" },
+];
+
+function normalizeText(text = "") {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+// Tenta descobrir a cidade através do nome do aeroporto, morada ou termos mapeados
+function getCityFromMap(name = "", address = "") {
+  const text = ` ${normalizeText(name)} ${normalizeText(address)} `;
+
+  for (const item of AIRPORT_CITY_MAP) {
+    if (
+      item.match.some((term) => {
+        const t = ` ${normalizeText(term)} `;
+        return text.includes(t);
+      })
+    ) {
+      return item.city;
+    }
+  }
+  return null;
+}
+
+// Extrai a cidade correta dos address_components do Google Geocoding
+function getCityFromAddressComponents(components = []) {
+  const locality = components.find((c) => c.types?.includes("locality"));
+  const admin2 = components.find((c) => c.types?.includes("administrative_area_level_2"));
+  const admin1 = components.find((c) => c.types?.includes("administrative_area_level_1"));
+
+  return locality?.long_name || admin2?.long_name || admin1?.long_name || "";
+}
+
 const OpcaoAviao = () => {
   const navigation = useNavigation();
   const [tecladoAtivo, setTecladoAtivo] = useState(false);
@@ -53,122 +111,78 @@ const OpcaoAviao = () => {
       return;
     }
 
-    const reverseGeocode = async (lat, lon, tipo) => {
-      try {
-        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
-        const response = await fetch(url, {
-          headers: {
-            'User-Agent': 'ReactNativeApp/1.0',
-          },
-        });
+    const nomeAeroporto = item.name; // Ex: "Aeroporto Internacional de João Pessoa"
+    const enderecoAeroporto = item.formatted_address || '';
+    const {lat, lng} = item.geometry.location;
 
-        const data = await response.json();
-        const addr = data.address;
-
-        let city = addr.city || addr.town || addr.village || '';
-        let muni = addr.municipality || '';
-        let cityMain = '';
-
-        const match =
-          muni.match(/Região Geográfica Imediata d[eo] (.+)/i) ||
-          muni.match(/Região Imediata d[eo] (.+)/i);
-        if (match) {
-          cityMain = match[1].trim();
-        }
-
-        const cidadeFinal = cityMain || city;
-
-        /*await AsyncStorage.setItem(
-          `cidade_${tipo}_main`,
-          `${cidadeFinal}, Brasil`,
-        );*/
-
-        await saveToGlobalState({
-          [`cidade_${tipo}_main`]: `${cidadeFinal}, Brasil`,
-        });
-        //console.log(`Cidade ${tipo} main:`, cidadeFinal);
-      } catch (error) {
-        console.error(`Erro no reverse geocoding de ${tipo}:`, error);
-      }
-    };
-
-    const nomeAeroporto = item.name; // Ex: "Aeroporto Santos Dumont"
-    const {lat, lng} = item.geometry.location; // coords do aeroporto
-
-    // 1) Faz reverse geocoding pra extrair o nome da cidade
     let cidadeMain = 'Cidade não encontrada';
     let YOUR_API_KEY = Config.GOOGLE_API_KEY;
+
     try {
       const resp = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${YOUR_API_KEY}&language=pt`,
       );
       const json = await resp.json();
-      if (json.status === 'OK') {
+
+      if (json.status === 'OK' && json.results.length > 0) {
+        // 1. Procura primeiro no mapa personalizado de aeroportos (Resolve João Pessoa/Bayeux e Natal/São Gonçalo)
+        let mappedCity = null;
         for (const result of json.results) {
-          for (const comp of result.address_components) {
-            if (comp.types.includes('locality')) {
-              cidadeMain = `${comp.long_name}, Brasil`;
+          mappedCity = getCityFromMap(nomeAeroporto, result.formatted_address);
+          if (mappedCity) break;
+        }
+
+        if (mappedCity) {
+          cidadeMain = `${mappedCity}, Brasil`;
+        } else {
+          // 2. Fallback para os componentes padrão do Google se não estiver no mapa manual
+          for (const result of json.results) {
+            const extractedCity = getCityFromAddressComponents(result.address_components);
+            if (extractedCity) {
+              cidadeMain = `${extractedCity}, Brasil`;
               break;
             }
-            if (
-              comp.types.includes('administrative_area_level_2') &&
-              cidadeMain === 'Cidade não encontrada'
-            ) {
-              cidadeMain = `${comp.long_name}, Brasil`;
-            }
           }
-          if (cidadeMain !== 'Cidade não encontrada') break;
         }
-      } else {
-        console.warn('Geocoding error:', json.status);
       }
     } catch (err) {
       console.error('Erro no fetch de geocoding:', err);
+      // Fallback de emergência baseado apenas no nome do aeroporto
+      const emergencyCity = getCityFromMap(nomeAeroporto, enderecoAeroporto);
+      if (emergencyCity) {
+        cidadeMain = `${emergencyCity}, Brasil`;
+      }
     }
 
-    await reverseGeocode(
-      lat,
-      lng,
-      campoSelecionado === 'saindoDe' ? 'origem' : 'destino',
-    );
+    const tipoDestino = campoSelecionado === 'saindoDe' ? 'origem' : 'destino';
 
-    // 2) Atualiza estado para exibir no mapa e no Touchable
+    // Salva a cidade principal tratada no estado global
+    await saveToGlobalState({
+      [`cidade_${tipoDestino}_main`]: cidadeMain,
+    });
+
     if (campoSelecionado === 'saindoDe') {
-      setSaindoDe(nomeAeroporto); // mostra o aeroporto no Touchable
-      setOrigemCoords({lat, lng}); // reposiciona o marker
+      setSaindoDe(nomeAeroporto);
+      setOrigemCoords({lat, lng});
 
-      // 3) Salva tudo no AsyncStorage
-      /*await AsyncStorage.setItem('cidade_origem', nomeAeroporto);
-      await AsyncStorage.setItem('lat_cidade_origem', lat.toFixed(7));
-      await AsyncStorage.setItem('lng_cidade_origem', lng.toFixed(7));
-      //await AsyncStorage.setItem('cidade_origem_main', cidadeMain);
-      await AsyncStorage.setItem('pais_origem', 'Brasil');*/
       await saveToGlobalState({
         cidade_origem: nomeAeroporto,
         lat_cidade_origem: lat.toFixed(7),
         lng_cidade_origem: lng.toFixed(7),
-        // cidade_origem_main: cidadeMain,
         pais_origem: 'Brasil',
       });
     } else if (campoSelecionado === 'indoPara') {
       setIndoPara(nomeAeroporto);
       setDestinoCoords({lat, lng});
 
-      /*await AsyncStorage.setItem('cidade_destino', nomeAeroporto);
-      await AsyncStorage.setItem('lat_cidade_destino', lat.toFixed(7));
-      await AsyncStorage.setItem('lng_cidade_destino', lng.toFixed(7));
-      //await AsyncStorage.setItem('cidade_destino_main', cidadeMain);
-      await AsyncStorage.setItem('pais_destino', 'Brasil');*/
       await saveToGlobalState({
         cidade_destino: nomeAeroporto,
         lat_cidade_destino: lat.toFixed(7),
         lng_cidade_destino: lng.toFixed(7),
-        // cidade_destino_main: cidadeMain,
         pais_destino: 'Brasil',
       });
     }
 
-    // 4) Fecha a modal e limpa o input
     setTextoTemporario('');
     setModalVisible(false);
   };
@@ -659,24 +673,24 @@ const OpcaoAviao = () => {
             borderRadius: 10,
           }}
         >
-          <Text style={{ color: 'white', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Atualizar Dados Salvos</Text>
+          <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Atualizar Dados Salvos</Text>
         </TouchableOpacity>
 
         {dadosArmazenados && (
           <View style={{ marginTop: 15 }}>
-            <Text style={{ fontWeight: 'bold' }}>Origem:</Text>
-            <Text>Cidade: {dadosArmazenados.cidadeOrigem}</Text>
-            <Text>Latitude: {dadosArmazenados.latOrigem}</Text>
-            <Text>Longitude: {dadosArmazenados.lngOrigem}</Text>
-            <Text>Cidade Main: {dadosArmazenados.cidadeOrigemMain}</Text>
-            <Text>País: {dadosArmazenados.paisOrigem}</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Origem:</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Cidade: {dadosArmazenados.cidadeOrigem}</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Latitude: {dadosArmazenados.latOrigem}</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Longitude: {dadosArmazenados.lngOrigem}</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Cidade Main: {dadosArmazenados.cidadeOrigemMain}</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>País: {dadosArmazenados.paisOrigem}</Text>
 
-            <Text style={{ fontWeight: 'bold', marginTop: 10 }}>Destino:</Text>
-            <Text>Cidade: {dadosArmazenados.cidadeDestino}</Text>
-            <Text>Latitude: {dadosArmazenados.latDestino}</Text>
-            <Text>Longitude: {dadosArmazenados.lngDestino}</Text>
-            <Text>Cidade Main: {dadosArmazenados.cidadeDestinoMain}</Text>
-            <Text>País: {dadosArmazenados.paisDestino}</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Destino:</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Cidade: {dadosArmazenados.cidadeDestino}</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Latitude: {dadosArmazenados.latDestino}</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Longitude: {dadosArmazenados.lngDestino}</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>Cidade Main: {dadosArmazenados.cidadeDestinoMain}</Text>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Montserrat-Bold' }}>País: {dadosArmazenados.paisDestino}</Text>
           </View>
         )}*/}
 

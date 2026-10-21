@@ -24,9 +24,9 @@ export default function UseViagensNoRaioNaoDesejado({ saindo_de, indo_para, carg
         //try {
           // Agora tente converter para JSON
           const data = JSON.parse(rawText);
-          console.log(data)
+          //console.log(data)
           const foraDoRaio = data.filter((item) => item.tipo_resultado === 'fora do raio');
-          console.log(foraDoRaio)
+          //console.log(foraDoRaio)
           //if(data[0].tipo_resultado == 'fora do raio'){
             setViagensNoRaioNaoDesejado(foraDoRaio);
           //}          

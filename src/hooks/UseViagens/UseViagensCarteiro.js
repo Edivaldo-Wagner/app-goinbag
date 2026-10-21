@@ -18,27 +18,27 @@ export default function UseViagensCarteiro() {
     useState(null);
 
   const buscarViagensEmNegociacaoCarteiro = async () => {
-    console.log('=== BUSCAR VIAGENS ===');
+    //console.log('=== BUSCAR VIAGENS ===');
 
     try {
       setLoadingViagensEmNegociacaoCarteiro(true);
       setErroViagensEmNegociacaoCarteiro(null);
 
-      console.log('loading:', loading);
-      console.log('user:', user);
-      console.log('accessToken existe:', !!accessToken);
+      //console.log('loading:', loading);
+      //console.log('user:', user);
+      //console.log('accessToken existe:', !!accessToken);
 
       const responseViagensEmNegociacaoCarteiro =
         await fetchViagensEmNegociacao(authFetch);
 
-      console.log('response:', responseViagensEmNegociacaoCarteiro);
+      //console.log('response:', responseViagensEmNegociacaoCarteiro);
 
-      console.log('status:', responseViagensEmNegociacaoCarteiro.status);
+      //console.log('status:', responseViagensEmNegociacaoCarteiro.status);
 
       const rawTextViagensEmNegociacaoCarteiro =
         await responseViagensEmNegociacaoCarteiro.text();
 
-      console.log('RAW RESPONSE:', rawTextViagensEmNegociacaoCarteiro);
+      //console.log('RAW RESPONSE:', rawTextViagensEmNegociacaoCarteiro);
 
       if (!responseViagensEmNegociacaoCarteiro.ok) {
         throw new Error(
@@ -50,12 +50,12 @@ export default function UseViagensCarteiro() {
         rawTextViagensEmNegociacaoCarteiro,
       );
 
-      console.log('DATA:', dataViagensEmNegociacaoCarteiro);
+      //console.log('DATA:', dataViagensEmNegociacaoCarteiro);
 
       const resultados = dataViagensEmNegociacaoCarteiro.resultados || [];
 
-      console.log('RESULTADOS:', resultados);
-      console.log('TOTAL:', resultados.length);
+      //console.log('RESULTADOS:', resultados);
+      //console.log('TOTAL:', resultados.length);
 
       setViagensEmNegociacaoCarteiro(
         resultados.filter(item => item.traveler?.serie === user.serie),

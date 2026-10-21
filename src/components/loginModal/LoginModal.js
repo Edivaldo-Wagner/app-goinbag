@@ -351,7 +351,7 @@ const LoginModal = ({visible, onClose}) => {
     });
 
     onClose();
-    navigation.navigate('Cadastro');
+    //navigation.navigate('Cadastro');
   };
 
   return (
@@ -427,7 +427,7 @@ const LoginModal = ({visible, onClose}) => {
               </View>
 
               {/* Campo Email */}
-              <View style={{marginTop: 25}}>
+              <View style={{marginTop: 15, padding: 5}}>
                 <Text style={styles.inputLabel}>Email</Text>
                 <TextInput
                   autoFocus
@@ -440,7 +440,7 @@ const LoginModal = ({visible, onClose}) => {
               </View>
 
               {/* Campo Senha */}
-              <View style={{marginTop: 15}}>
+              <View style={{marginTop: 5, padding: 5}}>
                 <Text style={styles.inputLabel}>Senha</Text>
                 <TextInput
                   style={styles.input}
@@ -475,7 +475,7 @@ const LoginModal = ({visible, onClose}) => {
               </TouchableOpacity>
 
               {/* Redes Sociais */}
-              <View style={{marginTop: 25, marginBottom: 40}}>
+              <View style={{marginTop: 10, marginBottom: 20, padding: 5}}>
                 <Text style={styles.sectionTitle}>Criar conta nova</Text>
 
                 <TouchableOpacity

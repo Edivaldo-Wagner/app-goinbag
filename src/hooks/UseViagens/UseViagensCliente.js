@@ -19,32 +19,32 @@ export default function UseViagensCliente() {
     useState(null);
 
   const buscarViagensEmNegociacaoCliente = async () => {
-    console.log('=== BUSCAR VIAGENS ===');
+    //console.log('=== BUSCAR VIAGENS ===');
 
     try {
       setLoadingViagensEmNegociacaoCliente(true);
       setErroViagensEmNegociacaoCliente(null);
 
-      console.log('loading:', loading);
-      console.log('user:', user);
-      console.log('accessToken existe:', !!accessToken);
+      //console.log('loading:', loading);
+      //console.log('user:', user);
+      //console.log('accessToken existe:', !!accessToken);
 
       const serie_logado_cliente = await AsyncStorage.getItem('serie_logado');
 
-      console.log('serie_logado:', serie_logado_cliente);
+      //console.log('serie_logado:', serie_logado_cliente);
 
       const responseViagensEmNegociacaoCliente = await fetchViagensEmNegociacao(
         authFetch,
       );
 
-      console.log('response:', responseViagensEmNegociacaoCliente);
+      //console.log('response:', responseViagensEmNegociacaoCliente);
 
-      console.log('status:', responseViagensEmNegociacaoCliente.status);
+      //console.log('status:', responseViagensEmNegociacaoCliente.status);
 
       const rawTextViagensEmNegociacaoCliente =
         await responseViagensEmNegociacaoCliente.text();
 
-      console.log('RAW RESPONSE:', rawTextViagensEmNegociacaoCliente);
+      //console.log('RAW RESPONSE:', rawTextViagensEmNegociacaoCliente);
 
       if (!responseViagensEmNegociacaoCliente.ok) {
         throw new Error(
@@ -56,16 +56,18 @@ export default function UseViagensCliente() {
         rawTextViagensEmNegociacaoCliente,
       );
 
-      console.log('DATA:', dataViagensEmNegociacaoCliente);
+      //.log('DATA:', dataViagensEmNegociacaoCliente);
 
       const resultados = dataViagensEmNegociacaoCliente.resultados || [];
 
-      console.log('RESULTADOS:', resultados);
-      console.log('TOTAL:', resultados.length);
+      //console.log('RESULTADOS:', resultados);
+      //console.log('TOTAL:', resultados.length);
 
-      setViagensEmNegociacaoCliente(
-        resultados.filter(item => item.client?.serie === user.serie),
-      );
+      const resultadosFiltrados = resultados.filter(item => item.client?.serie === user.serie);
+      
+      setViagensEmNegociacaoCliente(resultadosFiltrados);
+      
+      return resultadosFiltrados;
     } catch (err) {
       console.log('ERRO BUSCANDO VIAGENS:', err);
 

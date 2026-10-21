@@ -186,7 +186,7 @@ const VisualizarViagem = () => {
     setShowMsgErrorCepCartaoModal('');
     if (numericCep.length === 8) {
       const resultadoCep = await validandoCep(maskedCep);
-      console.log('Resultado direto da API:', resultadoCep);
+      //console.log('Resultado direto da API:', resultadoCep);
       if (resultadoCep.cep == null) {
         setMsgCepNaoLocalizado(
           'Dados de CEP não localizados. Insira o seu endereço manualmente',
@@ -386,8 +386,8 @@ const VisualizarViagem = () => {
 
     //alert('perto..')
 
-    console.log(okPagamentoServicoPix);
-    console.log(okPagamentoServicoPix.result.cobranca_id);
+    //console.log(okPagamentoServicoPix);
+    //console.log(okPagamentoServicoPix.result.cobranca_id);
 
     setTimeout(async () => {
       //alert('novo  entrada..')
